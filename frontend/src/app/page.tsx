@@ -86,7 +86,6 @@ export default function Home() {
     try {
       setIsUnlocked(true); 
 
-      // ENSURE ALL FIELDS ARE PRESENT
       await axios.post(`${siteConfig.api.url}/send-report`, {
         email: email,
         leads: results || [],
@@ -129,15 +128,14 @@ export default function Home() {
         </div>
         
         <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight">
-          {siteConfig.hero.title} <br className="hidden md:block" />
-          Your{" "}
+          {siteConfig.hero?.title || "Cursor for GTM"} <br className="hidden md:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
-            {siteConfig.hero.highlight}
+            {siteConfig.hero?.highlight || "Find High-Value Targets"}
           </span>
         </h1>
         
         <p className="text-xl text-slate-600 max-w-2xl mx-auto leading-relaxed">
-          {siteConfig.hero.subtitle}
+          {siteConfig.hero?.subtitle || "The AI-native workspace to build, test, and deploy go-to-market campaigns at the speed of thought."}
         </p>
       </section>
 
@@ -185,7 +183,11 @@ export default function Home() {
                   </div>
                   
                   <button 
-                    onClick={() => setStatus("idle")}
+                    onClick={() => {
+                        setStatus("idle");
+                        setFiles(null);
+                        setIdea("");
+                    }}
                     className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:border-indigo-300 hover:text-indigo-600 text-slate-600 rounded-lg font-medium transition-all shadow-sm hover:shadow-md active:scale-95 text-sm h-fit"
                   >
                     <RotateCcw className="w-4 h-4" /> New Scan
@@ -194,7 +196,7 @@ export default function Home() {
 
                 <div className="p-6">
                   <p className="text-base text-slate-600 leading-relaxed mb-6">
-                    {strategy?.summary_analysis}
+                    {strategy?.summary_analysis || strategy?.summary || "Analysis complete. Review the top candidates below."}
                   </p>
 
                   <div className="flex items-center gap-2 mb-4">
@@ -204,40 +206,46 @@ export default function Home() {
                     </p>
                   </div>
 
-                  {/* Results Table — Tactical Briefing */}
+                  {/* Results Table */}
                   <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                    {/* Table Header */}
                     <div className="grid grid-cols-12 bg-slate-50 border-b border-slate-200 py-3 px-4 text-xs font-bold text-slate-500 uppercase tracking-widest">
-                      <div className="col-span-1">Utility</div>
+                      <div className="col-span-2">Score</div>
                       <div className="col-span-3">Profile</div>
-                      <div className="col-span-8">Tactical Briefing</div>
+                      <div className="col-span-7">Tactical Briefing</div>
                     </div>
 
+                    {/* Table Body */}
                     {(isUnlocked ? results : results.slice(0, 3)).map((r, i) => (
-                      <div key={i} className="grid grid-cols-12 py-5 px-4 border-b border-slate-100 items-start hover:bg-slate-50/80 transition-colors animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="col-span-1">
-                          <span className={`inline-flex items-center justify-center w-10 h-8 rounded-lg font-bold text-sm shadow-sm
+                      <div key={i} className="grid grid-cols-12 py-5 px-4 border-b border-slate-100 items-start hover:bg-slate-50/80 transition-colors">
+                        <div className="col-span-2">
+                          <span className={`inline-flex items-center justify-center w-12 h-8 rounded-lg font-bold text-sm shadow-sm
                             ${r.score >= 9.0 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 
                               r.score >= 7.5 ? 'bg-blue-100 text-blue-800 border border-blue-200' : 
                               r.score >= 5.0 ? 'bg-amber-100 text-amber-800 border border-amber-200' : 
                               'bg-slate-100 text-slate-500'}
                           `}>
-                            {r.score}
+                            {r.score}/10
                           </span>
                         </div>
                         <div className="col-span-3 pr-4">
-                          <div className="font-bold text-slate-900 leading-tight mb-0.5">{r.name}</div>
-                          <div className="text-xs text-slate-700 font-semibold">{r.role}</div>
-                          <div className="text-sm text-slate-400 mt-1">{r.company}</div>
+                          <div className="font-bold text-slate-900 leading-tight mb-0.5">
+                              {r['First Name'] || r.first_name} {r['Last Name'] || r.last_name}
+                          </div>
+                          <div className="text-xs text-slate-700 font-semibold">{r.Position || r.position || "Unknown Role"}</div>
+                          <div className="text-sm text-slate-400 mt-1">{r.Company || r.company || "Unknown Company"}</div>
                         </div>
-                        <div className="col-span-8">
-                          {r.symmetric_value && (
-                            <p className="text-base text-slate-700 leading-snug"><span className="font-semibold text-slate-600">Win-win:</span> {r.symmetric_value}</p>
+                        <div className="col-span-7 pl-2">
+                          {r.symmetric_value ? (
+                            <p className="text-sm text-slate-700 leading-snug"><span className="font-semibold text-slate-600">Why them: </span> {r.symmetric_value}</p>
+                          ) : (
+                            <p className="text-sm text-slate-500 italic">High authority match based on industry signals.</p>
                           )}
                         </div>
                       </div>
                     ))}
 
-                    {!isUnlocked && (
+                    {!isUnlocked && results.length > 0 && (
                       <div className="relative bg-slate-50 py-20 text-center border-t border-slate-200">
                         <div className="absolute inset-0 bg-white/70 backdrop-blur-[4px] z-10"></div>
                         <div className="relative z-20 max-w-md mx-auto bg-white p-8 rounded-2xl shadow-2xl border border-slate-200">
@@ -262,7 +270,7 @@ export default function Home() {
                                   <Unlock className="w-5 h-5 group-hover:rotate-12 transition-transform" /> Unlock & Email Report
                               </button>
                           </div>
-                          <p className="text-xs text-slate-400 mt-5 uppercase tracking-widest font-bold">1-Click CSV Export</p>
+                          <p className="text-xs text-slate-400 mt-5 uppercase tracking-widest font-bold">Includes CSV Export</p>
                         </div>
                       </div>
                     )}
@@ -280,7 +288,7 @@ export default function Home() {
                 <textarea 
                   className="w-full p-5 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-xl font-medium placeholder:text-slate-300"
                   rows={2}
-                  placeholder="e.g. Find clients for for my startup doing X..."
+                  placeholder="e.g. Find startup founders interested in AI..."
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
                 />
