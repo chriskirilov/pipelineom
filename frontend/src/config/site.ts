@@ -10,6 +10,6 @@ export const siteConfig = {
 
   // This allows you to point to localhost now, and your live URL later
   api: {
-    url: process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    url: "https://pipelineom-production.up.railway.app"
   }
 }
