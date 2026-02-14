@@ -255,7 +255,7 @@ export default function Home() {
                                   <Unlock className="w-5 h-5 group-hover:rotate-12 transition-transform" /> Unlock & Email Report
                               </button>
                           </div>
-                          <p className="text-xs text-slate-400 mt-5 uppercase tracking-widest font-bold">1-Click PDF & CSV Export</p>
+                          <p className="text-xs text-slate-400 mt-5 uppercase tracking-widest font-bold">1-Click CSV Export</p>
                         </div>
                       </div>
                     )}
