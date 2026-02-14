@@ -30,6 +30,15 @@ def process_csv(file_contents):
             break
 
     df = pd.read_csv(io.StringIO(content_str), skiprows=header_idx)
+    
+    # Normalize headers to handle variations
+    mapping = {
+        'Job Title': 'Position',
+        'Company Name': 'Company',
+        'First Name': 'First Name',
+        'Last Name': 'Last Name'
+    }
+    df.rename(columns=mapping, inplace=True)
     df.columns = [c.strip() for c in df.columns]
     return df
 
@@ -152,9 +161,16 @@ def _extract_json(text: str):
 
 async def generate_strategy(idea: str, row_count: int):
     """Generate scoring strategy with retry and smart fallback."""
-    prompt = f"""Goal: "{idea}" | Dataset: {row_count} connections.
+    prompt = f"""User Goal: "{idea}"
 
-You are an executive headhunter. Produce scoring signals for the EXACT type of person needed.
+Task: Create a Scoring Rubric.
+
+CRITICAL INSTRUCTION:
+1. Provide BROADER keywords (e.g., 'Investor' instead of 'SaaS Seed Investor') to ensure we don't miss targets in the first pass.
+2. If the user mentions 'Investors', you MUST include: 'Partner', 'VC', 'Capital', 'Ventures', 'Angel' in keywords.
+3. Your summary_analysis must be a string.
+
+Dataset: {row_count} connections.
 
 CATEGORY RULES (never mix — understand the EXACT relationship the user wants):
 - Job/hire → people with HEADCOUNT at operating companies. VCs score 0.
