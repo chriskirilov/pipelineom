@@ -111,12 +111,12 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Image
               src="/logo.png"
-              alt="PipelineOM Logo"
+              alt="OM Logo"
               width={32}
               height={32}
               className="rounded-md"
             />
-            <span className="font-bold text-xl tracking-tight">PipelineOM</span>
+            <span className="font-bold text-xl tracking-tight">OM</span>
           </div>
         </div>
       </nav>
