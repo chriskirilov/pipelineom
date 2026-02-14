@@ -6,7 +6,10 @@ import pandas as pd
 import asyncio
 import os
 import datetime
-from services import process_csv, generate_strategy, analyze_lead
+import resend
+import csv
+from io import StringIO
+from services import process_csv, generate_strategy, analyze_leads_batch
 
 app = FastAPI(title="PipelineOM API")
 
@@ -18,8 +21,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Email Setup
+resend.api_key = os.getenv("RESEND_API_KEY")
+
 class EmailRequest(BaseModel):
     email: str
+
+class ReportRequest(BaseModel):
+    email: str
+    leads: List[dict]
+    query: str
+    persona: str
+    summary_analysis: str = "" # Add a default value to prevent 422 if missing
 
 @app.post("/subscribe")
 async def subscribe(data: EmailRequest):
@@ -36,13 +49,85 @@ async def subscribe(data: EmailRequest):
         print(f"Error saving to CSV: {e}")
     return {"status": "success"}
 
+@app.post("/send-report")
+async def send_report(data: ReportRequest):
+    try:
+        # 1. Short attachment filename
+        date_str = datetime.datetime.now().strftime("%Y%m%d")
+        filename = f"PipelineOM_Report_{date_str}.csv"
+
+        # 2. Generate CSV in Memory
+        csv_buffer = StringIO()
+        writer = csv.writer(csv_buffer)
+        writer.writerow(["Name", "Role", "Company", "Utility Score", "Symmetric Value", "Reasoning"])
+        for lead in data.leads:
+            writer.writerow([
+                lead.get("name", ""),
+                lead.get("role", ""),
+                lead.get("company", ""),
+                lead.get("score", ""),
+                lead.get("symmetric_value", ""),
+                lead.get("reasoning", "")
+            ])
+        csv_content = csv_buffer.getvalue()
+        
+        # 3. Contextual Email Body
+        top_lead = data.leads[0]['name'] if data.leads else "high-value matches"
+        
+        params = {
+            "from": "PipelineOM <no-reply@leads.pipelineom.com>", 
+            "to": [data.email],
+            "subject": "Your PipelineOM report",
+            "html": f"""
+                <div style="font-family: sans-serif; max-width: 600px; color: #1e293b; line-height: 1.6;">
+                    <h2 style="color: #4f46e5;">Your Network Analysis is Ready</h2>
+                    <p>We analyzed your connections to help with your goal: <strong>"{data.query}"</strong></p>
+                    
+                    <div style="background: #f8fafc; padding: 20px; border-left: 4px solid #4f46e5; margin: 20px 0;">
+                        <p style="margin: 0; font-weight: 600; color: #475569; text-transform: uppercase; font-size: 12px; letter-spacing: 0.05em;">Overview</p>
+                        <p style="margin: 5px 0 0 0; color: #334155;">{data.summary_analysis}</p>
+                    </div>
+                    
+                    <h3>Proposed Next Steps:</h3>
+                    <ul style="padding-left: 20px;">
+                        <li><strong>High Priority:</strong> Reach out to <strong>{top_lead}</strong>. Based on their authority and industry presence, they are a primary decision-maker for your goal.</li>
+                        <li><strong>Leverage the List:</strong> The attached CSV contains 20 leads filtered by hiring authority and budget stability.</li>
+                        <li><strong>Refine Your Pitch:</strong> Focus on the specific value points mentioned in the "Reasoning" column of the report.</li>
+                    </ul>
+                    
+                    <p style="margin-top: 30px; font-size: 14px; color: #64748b;">
+                        The full detailed report is attached to this email. Good luck with your outreach!
+                    </p>
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">Powered by PipelineOM — Built for the Autonomous Enterprise</p>
+                </div>
+            """,
+            "attachments": [
+                {
+                    "filename": filename, 
+                    "content": list(csv_content.encode("utf-8"))
+                }
+            ]
+        }
+        resend.Emails.send(params)
+        return {"status": "success"}
+    except Exception as e:
+        print(f"Email Error: {e}")
+        return {"status": "error", "detail": str(e)}
+
+MAX_TOTAL_UPLOAD_MB = 10  # Total file size limit across all uploaded files
+
 @app.post("/analyze")
 async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
     try:
-        # 1. Process Files
+        # 1. Process Files (with size limit)
         dfs = []
+        total_bytes = 0
         for file in files:
             contents = await file.read()
+            total_bytes += len(contents)
+            if total_bytes > MAX_TOTAL_UPLOAD_MB * 1024 * 1024:
+                raise HTTPException(status_code=413, detail=f"Total upload exceeds {MAX_TOTAL_UPLOAD_MB}MB limit.")
             dfs.append(process_csv(contents))
         
         if not dfs:
@@ -55,73 +140,70 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
             df = df.drop_duplicates(subset=['URL'], keep='first')
         else:
             df = df.drop_duplicates(subset=['First Name', 'Last Name', 'Company'], keep='first')
-            
+        
         df = df.fillna("") 
 
         if df.empty:
             raise HTTPException(status_code=400, detail="Empty CSV")
 
-        # 2. Strategy
-        strategy = await generate_strategy(idea)
-        keywords = [k.lower() for k in strategy.get("keywords", [])]
+        # 2. Get Dynamic Strategy from Architect
+        row_count = len(df)
+        strategy = await generate_strategy(idea, row_count)
         
-        # 3. Fast Filter (The "Money" Logic)
+        keywords = [k.lower() for k in strategy.get("keywords", []) if isinstance(k, str)]
+        boost_words = [b.lower() for b in strategy.get("boost_words", []) if isinstance(b, str)]
+        company_words = [c.lower() for c in strategy.get("company_words", []) if isinstance(c, str)]
+        negative_words = [n.lower() for n in strategy.get("negative_words", ["intern", "student"]) if isinstance(n, str)]
+        priority_signals = [s.lower() for s in strategy.get("priority_signals", []) if isinstance(s, str)]
+        
+        # 3. Fast Filter — score everyone, take top 100. This is just prioritization, NOT elimination.
+        # The AI batch scorer does the real filtering.
         def quick_score(row):
             pos = str(row.get('Position', '')).lower()
             comp = str(row.get('Company', '')).lower()
             text = f"{pos} {comp}"
-            
-            # Base Keyword Match
-            score = sum(1 for w in keywords if w in text)
-            
-            # 1. VIP Title Boost
-            vip_titles = ["partner", "principal", "head", "vp", "chief", "founder", "chairman", "director", "investor"]
-            if any(title in pos for title in vip_titles):
-                score += 1.5 
-            
-            # 2. THE "WALL STREET" SIGNAL (Fix for Sequoia Capital)
-            # If the company name sounds like an investment firm, boost it heavily.
-            money_words = ["capital", "ventures", "fund", "equity", "partners", "investments", "asset", "wealth", "vc", "angel"]
-            
-            if any(word in comp for word in money_words):
-                # If they are a VIP at a "Money Company", massive boost
-                if any(title in pos for title in vip_titles):
-                    score += 3.0 # Takes priority over almost anything else
-                else:
-                    score += 1.0
-
+            score = 0
+            score += sum(1 for w in keywords if w in text)
+            score += sum(2 for w in boost_words if w in pos)
+            score += sum(2 for w in company_words if w in comp)
+            score += sum(1 for w in priority_signals if w in text)
+            for w in negative_words:
+                if w in pos:
+                    score -= 5
             return score
 
         df['quick_score'] = df.apply(quick_score, axis=1)
         
-        # --- LOGIC CHANGE: 300 IN ---
-        # Increased to 300 to ensure we catch everyone
-        candidates_to_analyze = df.sort_values(by='quick_score', ascending=False).head(300)
+        # Take top 100 — if few have positive scores, still take 100 to give the AI enough to work with.
+        candidates_df = df.sort_values(by='quick_score', ascending=False).head(100)
         
-        # 4. Deep Analysis (Semaphore to 50 concurrent)
-        sem = asyncio.Semaphore(50) 
-
-        async def limited_analyze(row):
-            async with sem:
-                return await analyze_lead(row, strategy['persona'])
-
-        tasks = [limited_analyze(row) for _, row in candidates_to_analyze.iterrows()]
-        enrichments = await asyncio.gather(*tasks)
-
-        # 5. Merge & Sort
+        # 4. Batch Analysis — 10 batches of 10, all in parallel (~3-4s)
+        candidate_rows = [row for _, row in candidates_df.iterrows()]
+        batch_size = 10
+        batches = [candidate_rows[i:i+batch_size] for i in range(0, len(candidate_rows), batch_size)]
+        
+        batch_tasks = [analyze_leads_batch(batch, strategy, idea) for batch in batches]
+        batch_results = await asyncio.gather(*batch_tasks)
+        
+        # 5. Flatten and match results back to candidates
         results = []
-        for (index, row), enrichment in zip(candidates_to_analyze.iterrows(), enrichments):
-            ai_score = enrichment.get('score', 0)
-            
-            # Strict Filter: Only show 6/10 or higher for final results
-            if ai_score >= 6:
-                results.append({
-                    "name": f"{row.get('First Name', '')} {row.get('Last Name', '')}",
-                    "company": row.get('Company', ''),
-                    "role": row.get('Position', ''),
-                    "score": ai_score,
-                    "reasoning": enrichment.get('reasoning', ''),
-                })
+        row_idx = 0
+        for batch_idx, batch_enrichments in enumerate(batch_results):
+            batch = batches[batch_idx]
+            # Create a lookup by id
+            enrichment_map = {r.get("id", i+1): r for i, r in enumerate(batch_enrichments)}
+            for i, row in enumerate(batch):
+                enrichment = enrichment_map.get(i+1, {"score": 0, "reasoning": "", "symmetric_value": ""})
+                ai_score = enrichment.get('score', 0)
+                if ai_score >= 6.0:
+                    results.append({
+                        "name": f"{row.get('First Name', '')} {row.get('Last Name', '')}",
+                        "company": row.get('Company', ''),
+                        "role": row.get('Position', ''),
+                        "score": ai_score,
+                        "reasoning": enrichment.get('reasoning', ''),
+                        "symmetric_value": enrichment.get('symmetric_value', ''),
+                    })
 
         final_results = sorted(results, key=lambda x: x['score'], reverse=True)
         
