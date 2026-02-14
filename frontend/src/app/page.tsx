@@ -15,6 +15,7 @@ export default function Home() {
   const [results, setResults] = useState<any[]>([]);
   const [strategy, setStrategy] = useState<any>(null);
   const [email, setEmail] = useState("");
+  const [sessionId, setSessionId] = useState<string>("");
   const [isUnlocked, setIsUnlocked] = useState(false);
   
   // Loading State
@@ -65,6 +66,7 @@ export default function Home() {
       const response = await axios.post(`${siteConfig.api.url}/analyze`, formData);
       setStrategy(response.data.strategy);
       setResults(response.data.data);
+      setSessionId(response.data.session_id || "");
       setProgress(100);
       setTimeout(() => setStatus("done"), 500);
       
@@ -89,7 +91,8 @@ export default function Home() {
         leads: results || [],
         query: idea || "Network Analysis",
         persona: strategy?.persona || "Targeted Leads",
-        summary_analysis: strategy?.summary_analysis || strategy?.summary || "Analysis complete." 
+        summary_analysis: strategy?.summary_analysis || strategy?.summary || "Analysis complete.",
+        session_id: sessionId,
       });
       
     } catch (e) {

@@ -5,7 +5,7 @@ export const siteConfig = {
   hero: {
     title: "Uncover Hidden Revenue in",
     highlight: "LinkedIn Network",
-    subtitle: "Upload your Connections CSV — our AI finds the exact leads you need in seconds.",
+    subtitle: "Upload your Connections CSV — our AI finds the exact leads you need in 30 seconds.",
   },
 
   // This allows you to point to localhost now, and your live URL later

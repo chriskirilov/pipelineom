@@ -6,12 +6,18 @@ import pandas as pd
 import asyncio
 import os
 import datetime
+import uuid
 import resend
 import csv
 from io import StringIO
+from sqlalchemy import update
 from services import process_csv, generate_strategy, analyze_leads_batch
+from database import SessionLocal, GlobalLead
 
 app = FastAPI(title="PipelineOM API")
+@app.get("/")
+async def health_check():
+    return {"status": "online", "message": "PipelineOM API is awake and ready."}
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +38,8 @@ class ReportRequest(BaseModel):
     leads: List[dict]
     query: str
     persona: str
-    summary_analysis: str = "" # Add a default value to prevent 422 if missing
+    summary_analysis: str = ""
+    session_id: str = ""
 
 @app.post("/subscribe")
 async def subscribe(data: EmailRequest):
@@ -51,6 +58,17 @@ async def subscribe(data: EmailRequest):
 
 @app.post("/send-report")
 async def send_report(data: ReportRequest):
+    if data.session_id:
+        db = SessionLocal()
+        try:
+            stmt = update(GlobalLead).where(GlobalLead.session_id == data.session_id).values(owner_email=data.email)
+            db.execute(stmt)
+            db.commit()
+        except Exception as e:
+            print(f"DB Update Error: {e}")
+        finally:
+            db.close()
+
     try:
         # 1. Short attachment filename
         date_str = datetime.datetime.now().strftime("%Y%m%d")
@@ -146,6 +164,28 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
         if df.empty:
             raise HTTPException(status_code=400, detail="Empty CSV")
 
+        # --- DB: Save all rows to GlobalLead ---
+        session_id = str(uuid.uuid4())
+        db = SessionLocal()
+        try:
+            records = []
+            for _, row in df.iterrows():
+                records.append(GlobalLead(
+                    session_id=session_id,
+                    first_name=str(row.get("First Name", "")),
+                    last_name=str(row.get("Last Name", "")),
+                    url=str(row.get("URL", "")),
+                    company=str(row.get("Company", "")),
+                    position=str(row.get("Position", "")),
+                    connected_on=str(row.get("Connected On", "")),
+                ))
+            db.add_all(records)
+            db.commit()
+        except Exception as e:
+            print(f"DB Insert Error: {e}")
+        finally:
+            db.close()
+
         # 2. Get Dynamic Strategy from Architect
         row_count = len(df)
         strategy = await generate_strategy(idea, row_count)
@@ -208,8 +248,9 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
         final_results = sorted(results, key=lambda x: x['score'], reverse=True)
         
         return {
+            "session_id": session_id,
             "strategy": strategy,
-            "data": final_results[:20] 
+            "data": final_results[:20]
         }
 
     except Exception as e:

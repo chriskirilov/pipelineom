@@ -254,6 +254,8 @@ SCORING RULES (apply to each lead independently):
 1. CATEGORY MATCH — understand the EXACT relationship the user wants:
    - Hiring → people at OPERATING COMPANIES with headcount. VCs/investors = 0-2.
    - Fundraising → investors who WRITE CHECKS. Regular employees = 0-2.
+     * Prefer investors with an EXPLICIT thesis (AI, GTM, SaaS, sales automation, infrastructure) over generalist "we invest in tech" — if you can't articulate their specific thesis fit, cap at 7. Do NOT hedge with "potential focus" or "if GTM/AI" — either you know the thesis or you don't.
+     * STAGE FIT matters: if the user is raising pre-seed/seed and this investor focuses on growth-stage (Series B+), penalize by -1 to -2 points. A growth-stage investor won't write a seed check no matter how good the thesis fit. Conversely, seed-focused funds that match the thesis = 9-10.
    - Sales/pilot/client → BUDGET HOLDERS who would BUY and USE the product internally.
    - Partner → people who DISTRIBUTE, RESELL, INTEGRATE, or CO-SELL the product to THEIR OWN CUSTOMERS. Partners are force multipliers.
      * 9-10: Agencies/BPOs that run operations for 100s of clients (e.g. MarketStar, Accenture) — rolling out the tool = 100+ customers at once.
@@ -279,21 +281,30 @@ SCORING RULES (apply to each lead independently):
    0-4: Wrong relationship type, wrong industry, or no leverage.
 
 5. SYMMETRIC VALUE (2-3 sentences, UNIQUE per lead — this is the most important field):
-   You are a strategy consultant briefing a CEO. Build a SPECIFIC business argument:
+   Build a SPECIFIC argument. The framing depends on the goal:
    
-   Sentence 1 — COMPANY SITUATION: What does this company do, and what market force is pressuring them right now? (new competitors, shifting buyer expectations, AI disruption, margin pressure, scaling challenges). Use your knowledge of the company if it's well-known. If unknown, infer from their industry.
+   --- IF FUNDRAISING (value_flow = "to_me" and goal is raising capital) ---
+   VCs do NOT invest to "use your product for their portfolio." They invest because they believe your company can reach $100M+ ARR and return their fund.
    
-   Sentence 2 — THE BRIDGE: How does the user's offering specifically address that pressure? Name a concrete outcome.
-   - For CLIENTS: "cut SDR costs 40%", "launch outbound in 2 weeks without new hires".
-   - For PARTNERS: explain the DISTRIBUTION math — "integrating Cursor for GTM into MarketStar's SDR operations means deploying it across 500+ outsourced reps, turning one deal into 100+ end-users" or "a native Clay integration gives both platforms access to each other's user base."
+   CRITICAL: Each lead's briefing MUST open with something UNIQUE TO THAT SPECIFIC FUND OR PERSON. Do NOT repeat the same opening across multiple leads. 
+   - Sentence 1: LEAD WITH THE FUND, NOT YOUR PITCH. Open with what makes THIS fund/person specifically relevant — their recent deals, their stated thesis, their fund size/stage, their geographic focus, or their personal background. Every lead MUST have a different opening sentence.
+   - Sentence 2: Connect the user's company to THAT specific thesis. Why is this a fund-returning bet FOR THEM? (market size, category creation, timing)
+   - Sentence 3 (optional): Why this PERSON specifically — seniority, geographic/cultural bridge, specific domain expertise.
    
-   Sentence 3 (optional) — WHY THIS PERSON: What about their specific ROLE makes them the right entry point? (they own the partnership budget, they control the integration roadmap, they run the client delivery team).
+   If you don't know enough about the fund to write something specific, say so briefly — do NOT fabricate deal history or thesis details. Never use hedging language like "potential focus" or "if they invest in GTM."
    
-   GOOD: "AlphaSense is an incumbent in market intelligence, likely losing GTM edge to nimbler startups deploying agentic outbound. Cursor for GTM would let Oaxana's team run precision outbound campaigns at 10x volume without adding SDR headcount — directly improving her cost-per-meeting metric."
-   BAD: "She has influence over GTM budgets." (role description, not a business case)
-   BAD: "AlphaSense could benefit from AI tools." (vague, no specifics)
+   GOOD: "Accel's $650M early-stage fund has a mandate for sales automation — Ben's bets on Deel and Pocus show a sharp eye for GTM innovation. Cursor's AI-native outbound could mirror how Pocus redefined revenue intelligence, positioning it as a category-defining infrastructure play."
+   GOOD: "Eleven Ventures dominates CEE early-stage and frequently co-invests with US funds. Getting Valeri's conviction early gives you momentum to close a US lead — and his network across the Bulgarian engineering talent pool adds strategic value beyond capital."
+   BAD: "Cursor for GTM is positioning as the next foundational layer of AI-native go-to-market infrastructure..." (Do NOT use this as an opening line — it's your pitch, not their thesis. Lead with THEM, not you.)
+   BAD: "Dimiter could deploy Cursor across his portfolio to improve portfolio companies' outbound." (B2B sales logic, not venture logic.)
    
-   Reference the company BY NAME. No filler (alignment, synergy, explore, leverage insights).
+   --- IF CLIENT / SALES / PILOT (value_flow = "from_me") ---
+   Sentence 1 — COMPANY SITUATION: What does their company do, what market force is pressuring them?
+   Sentence 2 — THE BRIDGE: How does the user's offering address that? Concrete outcome (e.g. "cut SDR costs 40%", "launch outbound in 2 weeks without new hires").
+   Sentence 3 — WHY THIS PERSON: Role, budget, pain point ownership.
+   
+   --- IF PARTNER (distribution / integration) ---
+   Explain DISTRIBUTION math: "integrating into MarketStar's SDR operations = 500+ end-users from one deal." Reference company BY NAME. No filler (alignment, synergy, explore).
 
 Return a JSON array. Each element: {{"id": <number>, "score": <float>, "symmetric_value": "<string>", "reasoning": "<max 15 words>"}}
 Return ONLY the JSON array."""
