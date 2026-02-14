@@ -23,8 +23,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000", 
-        "https://pipelineom.vercel.app", 
-        "https://pipelineom.com", 
+        "https://pipelineom.vercel.app", # The Vercel preview link
+        "https://pipelineom.com",        # Your final custom domain
         "https://www.pipelineom.com"
     ],
     allow_credentials=True,
