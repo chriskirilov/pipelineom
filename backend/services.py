@@ -307,20 +307,19 @@ SCORING RULES (apply to each lead independently):
    - Sentence 2: Connect the user's company to THAT specific thesis. Why is this a fund-returning bet FOR THEM? (market size, category creation, timing)
    - Sentence 3 (optional): Why this PERSON specifically — seniority, geographic/cultural bridge, specific domain expertise.
    
-   If you don't know enough about the fund to write something specific, say so briefly — do NOT fabricate deal history or thesis details. Never use hedging language like "potential focus" or "if they invest in GTM."
+   If you don't know enough about the fund to write something specific, say so briefly — do NOT fabricate deal history or thesis details. Never use hedging language like "potential focus" or "if they invest in X."
    
-   GOOD: "Accel's $650M early-stage fund has a mandate for sales automation — Ben's bets on Deel and Pocus show a sharp eye for GTM innovation. Cursor's AI-native outbound could mirror how Pocus redefined revenue intelligence, positioning it as a category-defining infrastructure play."
-   GOOD: "Eleven Ventures dominates CEE early-stage and frequently co-invests with US funds. Getting Valeri's conviction early gives you momentum to close a US lead — and his network across the Bulgarian engineering talent pool adds strategic value beyond capital."
-   BAD: "Cursor for GTM is positioning as the next foundational layer of AI-native go-to-market infrastructure..." (Do NOT use this as an opening line — it's your pitch, not their thesis. Lead with THEM, not you.)
-   BAD: "Dimiter could deploy Cursor across his portfolio to improve portfolio companies' outbound." (B2B sales logic, not venture logic.)
+   GOOD: "[Fund name]'s early-stage fund focuses on [specific thesis]. [Person]'s track record with [known deal] signals conviction in this category. The user's product maps directly to that thesis as a [market size / category creation argument]."
+   BAD: "[User's product] is the next foundational layer of..." (Do NOT use this as an opening line — it's your pitch, not their thesis. Lead with THEM, not you.)
+   BAD: "[Person] could deploy this across their portfolio to help portfolio companies." (B2B sales logic, not venture logic.)
    
    --- IF CLIENT / SALES / PILOT (value_flow = "from_me") ---
    Sentence 1 — COMPANY SITUATION: What does their company do, what market force is pressuring them?
-   Sentence 2 — THE BRIDGE: How does the user's offering address that? Concrete outcome (e.g. "cut SDR costs 40%", "launch outbound in 2 weeks without new hires").
+   Sentence 2 — THE BRIDGE: How does the user's offering address that? Concrete outcome (e.g. "cut costs 40%", "launch in 2 weeks without new hires").
    Sentence 3 — WHY THIS PERSON: Role, budget, pain point ownership.
    
    --- IF PARTNER (distribution / integration) ---
-   Explain DISTRIBUTION math: "integrating into MarketStar's SDR operations = 500+ end-users from one deal." Reference company BY NAME. No filler (alignment, synergy, explore).
+   Explain DISTRIBUTION math: "integrating into [Company]'s operations = N end-users from one deal." Reference company BY NAME. No filler (alignment, synergy, explore).
 
 Return a JSON array. Each element: {{"id": <number>, "score": <float>, "symmetric_value": "<string>", "reasoning": "<max 15 words>"}}
 Return ONLY the JSON array."""
