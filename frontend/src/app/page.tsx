@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import { siteConfig } from "@/config/site";
+import Image from 'next/image';
 
 export default function Home() {
   const [idea, setIdea] = useState("");
@@ -108,9 +109,15 @@ export default function Home() {
       {/* Navbar */}
       <nav className="fixed w-full z-50 top-0 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="font-bold text-xl tracking-tight flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-sm font-bold">OM</div>
-            {siteConfig.name}
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="PipelineOM Logo"
+              width={32}
+              height={32}
+              className="rounded-md"
+            />
+            <span className="font-bold text-xl tracking-tight">PipelineOM</span>
           </div>
         </div>
       </nav>
