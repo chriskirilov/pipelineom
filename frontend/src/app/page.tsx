@@ -225,15 +225,15 @@ export default function Home() {
                               r.score >= 5.0 ? 'bg-amber-100 text-amber-800 border border-amber-200' : 
                               'bg-slate-100 text-slate-500'}
                           `}>
-                            {r.score}/10
+                            {r.score}
                           </span>
                         </div>
                         <div className="col-span-3 pr-4">
                           <div className="font-bold text-slate-900 leading-tight mb-0.5">
-                              {r['First Name'] || r.first_name} {r['Last Name'] || r.last_name}
+                            {r.name || 'Unknown'}
                           </div>
-                          <div className="text-xs text-slate-700 font-semibold">{r.Position || r.position || "Unknown Role"}</div>
-                          <div className="text-sm text-slate-400 mt-1">{r.Company || r.company || "Unknown Company"}</div>
+                          <div className="text-xs text-slate-700 font-semibold">{r.role || r.Position || r.position || '—'}</div>
+                          <div className="text-sm text-slate-400 mt-1">{r.company || r.Company || '—'}</div>
                         </div>
                         <div className="col-span-7 pl-2">
                           {r.symmetric_value ? (
