@@ -251,15 +251,14 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
             for i, row in enumerate(batch):
                 enrichment = enrichment_map.get(i+1, {"score": 0, "reasoning": "", "symmetric_value": ""})
                 ai_score = enrichment.get('score', 0)
-                if ai_score >= 6.0:
-                    results.append({
-                        "name": f"{row.get('First Name', '')} {row.get('Last Name', '')}",
-                        "company": row.get('Company', ''),
-                        "role": row.get('Position', ''),
-                        "score": ai_score,
-                        "reasoning": enrichment.get('reasoning', ''),
-                        "symmetric_value": enrichment.get('symmetric_value', ''),
-                    })
+                results.append({
+                    "name": f"{row.get('First Name', '')} {row.get('Last Name', '')}",
+                    "company": row.get('Company', ''),
+                    "role": row.get('Position', ''),
+                    "score": ai_score,
+                    "reasoning": enrichment.get('reasoning', ''),
+                    "symmetric_value": enrichment.get('symmetric_value', ''),
+                })
 
         final_results = sorted(results, key=lambda x: x['score'], reverse=True)
         

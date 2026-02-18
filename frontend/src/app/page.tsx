@@ -210,7 +210,13 @@ export default function Home() {
                       <div className="col-span-7">Tactical Briefing</div>
                     </div>
 
-                    {(isUnlocked ? results : results.slice(0, 3)).map((r, i) => (
+                    {(isUnlocked ? results : results.slice(0, 3)).length === 0 ? (
+                      <div className="py-12 px-4 text-center text-stone-500 text-sm">
+                        {results.length === 0
+                          ? "No leads met the signal threshold this time. Try a different objective or CSV."
+                          : "Enter your email below to unlock the full list."}
+                      </div>
+                    ) : (isUnlocked ? results : results.slice(0, 3)).map((r, i) => (
                       <div key={i} className="grid grid-cols-12 py-4 px-4 border-b border-[#e7e5e4] last:border-b-0 items-center hover:bg-[#fafaf9]/60 transition-colors">
                         <div className="col-span-2 flex items-center gap-3">
                           <div className="flex-1 h-2 bg-stone-200 rounded-full overflow-hidden max-w-[80px]">
@@ -238,7 +244,7 @@ export default function Home() {
                       </div>
                     ))}
 
-                    {!isUnlocked && results.length > 0 && (
+                    {!isUnlocked && (
                       <div className="relative bg-[#fafaf9] py-20 text-center border-t border-[#e7e5e4]">
                         <div className="absolute inset-0 bg-white/70 backdrop-blur-[4px] z-10"></div>
                         <div className="relative z-20 max-w-md mx-auto bg-white p-8 rounded-xl border border-[#e7e5e4] shadow-sm">
@@ -246,7 +252,11 @@ export default function Home() {
                               <Lock className="w-5 h-5" />
                           </div>
                           <h4 className="font-serif text-xl font-medium text-stone-900 mb-2">Get full report</h4>
-                          <p className="text-stone-500 mb-6 text-sm">We found <strong>{results.length}</strong> high-signal leads. Enter your email to receive the CSV and unlock the list below.</p>
+                          <p className="text-stone-500 mb-6 text-sm">
+                            {results.length > 0
+                              ? <>We found <strong>{results.length}</strong> high-signal leads. Enter your email to receive the CSV and unlock the list below.</>
+                              : "Enter your email to receive the analysis summary and CSV export."}
+                          </p>
                           <div className="space-y-3">
                               <input 
                                   type="email" 
