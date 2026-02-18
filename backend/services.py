@@ -128,7 +128,17 @@ def process_csv(file_contents):
             header_idx = i
             break
 
-    df = pd.read_csv(io.StringIO(content_str), skiprows=header_idx)
+    # Auto-detect delimiter (comma, tab, semicolon, pipe, etc.)
+    sep = ","
+    try:
+        sample = "\n".join(lines[header_idx : header_idx + 5])
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+        sep = dialect.delimiter
+    except csv.Error:
+        pass
+    print(f"[csv] detected delimiter: {repr(sep)}, header at line: {header_idx}")
+
+    df = pd.read_csv(io.StringIO(content_str), skiprows=header_idx, sep=sep)
     if df.empty:
         raise ValueError("CSV has no data rows")
     df.columns = [str(c).strip() for c in df.columns]
@@ -339,18 +349,18 @@ CATEGORY RULES (never mix — understand the EXACT relationship the user wants):
 - FUNDRAISING ONLY: "Power Signal" = Partner/GP/MD at VC/Fund → auto 9-10.
 - PARTNER SEARCH: Prioritize people at COMPANIES that have distribution leverage (agencies, platforms, complementary tools, BPOs with hundreds of end-users). Filter OUT individual end-users and companies in unrelated industries (mining, real estate, beverages, etc.).
 
-Return JSON:
+Return a SINGLE JSON object (all values must be strings or arrays of strings — NO nested objects):
 - value_flow: "to_me"|"from_me"|"between"
-- implicit_ask: 1 sentence, hyper-specific
-- summary_analysis: 1 sentence insight (no "We evaluated N", no restating goal)
-- persona: short label
-- anchor_domain: short
-- keywords: 6-10 for THIS ask
-- boost_words: titles for THIS ask
-- company_words: company types for THIS ask
-- negative_words: always ["Intern","Student","Freelance","Assistant"] + irrelevant roles
-- rubric: Tier1(9-10), Tier2(7-8), Tier3(5-6), Tier4(0-4) specific to ask
-- priority_signals: 3-8 short phrases for fast filter"""
+- implicit_ask: 1 sentence, hyper-specific (string)
+- summary_analysis: 1 sentence insight, no "We evaluated N", no restating goal (string)
+- persona: 2-4 word label (string)
+- anchor_domain: short (string)
+- keywords: 6-10 for THIS ask (array of strings)
+- boost_words: titles for THIS ask (array of strings)
+- company_words: company types for THIS ask (array of strings)
+- negative_words: always ["Intern","Student","Freelance","Assistant"] + irrelevant roles (array of strings)
+- rubric: "Tier1(9-10): ..., Tier2(7-8): ..., Tier3(5-6): ..., Tier4(0-4): ..." as ONE flat string
+- priority_signals: 3-8 short phrases for fast filter (array of strings)"""
 
     # Try up to 2 times
     for attempt in range(2):
@@ -387,7 +397,11 @@ Return JSON:
 
 
 def _build_lead_profile(row):
-    """Extract a clean profile dict from a CSV row."""
+    """Extract a clean profile dict from a CSV row.
+    
+    Tries canonical columns first, then scans all columns by header name
+    so data still flows even when column mapping missed something.
+    """
     fields = {}
     for key in ["First Name", "Last Name", "Position", "Company", "Industry", "Location"]:
         val = row.get(key, "")
@@ -396,6 +410,43 @@ def _build_lead_profile(row):
         val = str(val).strip()
         if val:
             fields[key] = val
+
+    # If key fields are still empty, scan all columns by header keyword
+    _FALLBACK = {
+        "First Name": ["first name", "firstname", "first_name", "fname"],
+        "Last Name": ["last name", "lastname", "last_name", "lname", "surname"],
+        "Company": ["company", "organization", "employer", "account", "business"],
+        "Position": ["position", "title", "role", "job title", "occupation"],
+    }
+    for canonical, hints in _FALLBACK.items():
+        if fields.get(canonical):
+            continue
+        for col_name in row.index:
+            if col_name in _CANONICAL:
+                continue
+            col_lower = str(col_name).strip().lower()
+            if any(h in col_lower for h in hints):
+                val = row.get(col_name, "")
+                if val is None or (isinstance(val, float) and pd.isna(val)):
+                    continue
+                val = str(val).strip()
+                if val:
+                    fields[canonical] = val
+                    break
+
+    # Full name fallback: if we still have no name, look for a "name" column
+    if not fields.get("First Name") and not fields.get("Last Name"):
+        for col_name in row.index:
+            col_lower = str(col_name).strip().lower()
+            if col_lower in ("name", "full name", "fullname", "contact name", "display name"):
+                val = str(row.get(col_name, "")).strip()
+                if val:
+                    parts = val.split(None, 1)
+                    fields["First Name"] = parts[0]
+                    if len(parts) > 1:
+                        fields["Last Name"] = parts[1]
+                    break
+
     return fields
 
 

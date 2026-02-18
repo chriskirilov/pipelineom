@@ -11,7 +11,7 @@ import resend
 import csv
 from io import StringIO
 from sqlalchemy import update
-from services import process_csv, generate_strategy, analyze_leads_batch
+from services import process_csv, generate_strategy, analyze_leads_batch, _build_lead_profile
 from database import SessionLocal, GlobalLead, SiteEmail
 
 app = FastAPI(title="OM API")
@@ -278,10 +278,11 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
                     ai_score = float(enrichment.get("score", 0))
                 except (ValueError, TypeError):
                     ai_score = 0.0
+                profile = _build_lead_profile(row)
                 results.append({
-                    "name": f"{row.get('First Name', '')} {row.get('Last Name', '')}".strip(),
-                    "company": row.get('Company', ''),
-                    "role": row.get('Position', ''),
+                    "name": f"{profile.get('First Name', '')} {profile.get('Last Name', '')}".strip(),
+                    "company": profile.get('Company', ''),
+                    "role": profile.get('Position', ''),
                     "score": ai_score,
                     "reasoning": enrichment.get('reasoning', ''),
                     "symmetric_value": enrichment.get('symmetric_value', ''),
