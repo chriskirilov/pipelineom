@@ -49,6 +49,8 @@ def _header_match_count(line):
     seen = set()
     for cell in row:
         n = cell.strip().lower()
+        if not n:
+            continue
         n_flat = _normalize_header_cell(cell)
         for canonical, variants in _COLUMN_VARIANTS.items():
             if canonical in seen:
@@ -58,7 +60,7 @@ def _header_match_count(line):
                 if n == v or n_flat == v_flat:
                     seen.add(canonical)
                     break
-                if len(v) >= 4 and (v in n or n in v):
+                if len(v) >= 4 and len(n) >= 3 and (v in n or n in v):
                     seen.add(canonical)
                     break
     return len(seen)
@@ -76,6 +78,8 @@ def _build_column_rename(df_columns):
     # Pass 1: exact matches only (case-insensitive, ignoring separators)
     for col in df_columns:
         raw = col.strip()
+        if not raw:
+            continue
         n = raw.lower()
         n_flat = _normalize_header_cell(raw)
         for canonical, variants in _COLUMN_VARIANTS.items():
@@ -89,17 +93,19 @@ def _build_column_rename(df_columns):
                     break
 
     # Pass 2: substring containment — only for still-unmapped columns & canonicals,
-    # and only when the variant is >= 4 chars (avoids "org" matching "organic_reach")
+    # and only when both variant and column name have meaningful length
     for col in df_columns:
         if col in rename:
             continue
         raw = col.strip()
+        if not raw:
+            continue
         n = raw.lower()
         for canonical, variants in _COLUMN_VARIANTS.items():
             if canonical in used:
                 continue
             for v in variants:
-                if len(v) < 4:
+                if len(v) < 4 or len(n) < 3:
                     continue
                 if v in n or n in v:
                     rename[col] = canonical
