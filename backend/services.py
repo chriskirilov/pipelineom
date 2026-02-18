@@ -122,11 +122,18 @@ def process_csv(file_contents):
         raise ValueError("File has no content")
 
     lines = content_str.split('\n')
-    header_idx = 0
+
+    # Find the header: scan first 25 lines, pick the one with the MOST matches
+    # (LinkedIn exports often have 3+ noise rows before the real header)
+    best_header_idx = 0
+    best_header_score = 0
     for i, line in enumerate(lines[:25]):
-        if _header_match_count(line) >= _HEADER_MIN_MATCHES:
-            header_idx = i
-            break
+        score = _header_match_count(line)
+        if score > best_header_score:
+            best_header_score = score
+            best_header_idx = i
+    header_idx = best_header_idx
+    print(f"[csv] header detection: line {header_idx} won with {best_header_score} column matches")
 
     # Try each delimiter; keep the one that gives the most recognized columns
     best_df = None
@@ -154,7 +161,7 @@ def process_csv(file_contents):
 
     df = best_df
     rename = best_rename
-    print(f"[csv] delimiter: {repr(best_sep)}, header at line: {header_idx}")
+    print(f"[csv] delimiter: {repr(best_sep)}, skipped {header_idx} noise rows")
     print(f"[csv] original columns ({len(df.columns)}): {list(df.columns)}")
     print(f"[csv] rename map: {rename}")
     df.rename(columns=rename, inplace=True)
