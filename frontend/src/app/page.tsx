@@ -199,12 +199,18 @@ export default function Home() {
                       </div>
                     )}
                     <p className="text-base text-stone-600 leading-relaxed">
-                      {strategy?.summary_analysis || strategy?.implicit_ask || "Analysis complete. Review the top candidates below."}
+                      {typeof (strategy?.summary_analysis || strategy?.implicit_ask) === 'string'
+                        ? (strategy?.summary_analysis || strategy?.implicit_ask || "Analysis complete. Review the top candidates below.")
+                        : "Analysis complete. Review the top candidates below."}
                     </p>
                     {strategy?.rubric && (
                       <details className="text-sm text-stone-500">
                         <summary className="cursor-pointer hover:text-stone-700 font-medium">Scoring rubric</summary>
-                        <p className="mt-2 pl-3 border-l-2 border-stone-200 text-stone-500 leading-relaxed">{strategy.rubric}</p>
+                        <p className="mt-2 pl-3 border-l-2 border-stone-200 text-stone-500 leading-relaxed">
+                          {typeof strategy.rubric === 'string'
+                            ? strategy.rubric
+                            : Object.entries(strategy.rubric).map(([k, v]) => `${k}: ${v}`).join(' · ')}
+                        </p>
                       </details>
                     )}
                   </div>
