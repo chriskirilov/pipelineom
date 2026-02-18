@@ -28,5 +28,16 @@ class GlobalLead(Base):
     
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
-# Create the table
+
+class SiteEmail(Base):
+    """Emails captured on the site (subscribe form, report unlock, etc.)."""
+    __tablename__ = "site_emails"
+
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String, nullable=False, index=True)
+    source = Column(String, nullable=True, index=True)  # e.g. "subscribe", "report_unlock"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+# Create the tables
 Base.metadata.create_all(bind=engine)

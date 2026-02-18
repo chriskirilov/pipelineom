@@ -12,7 +12,7 @@ import csv
 from io import StringIO
 from sqlalchemy import update
 from services import process_csv, generate_strategy, analyze_leads_batch
-from database import SessionLocal, GlobalLead
+from database import SessionLocal, GlobalLead, SiteEmail
 
 app = FastAPI(title="PipelineOM API")
 @app.get("/")
@@ -48,31 +48,37 @@ class ReportRequest(BaseModel):
 
 @app.post("/subscribe")
 async def subscribe(data: EmailRequest):
-    email = data.email
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"💰 NEW LEAD: {email} at {timestamp}")
+    email = data.email.strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email required")
+    print(f"💰 NEW LEAD (subscribe): {email}")
+    db = SessionLocal()
     try:
-        file_exists = os.path.isfile("captured_leads.csv")
-        with open("captured_leads.csv", "a") as f:
-            if not file_exists:
-                f.write("timestamp,email\n")
-            f.write(f"{timestamp},{email}\n")
+        db.add(SiteEmail(email=email, source="subscribe"))
+        db.commit()
     except Exception as e:
-        print(f"Error saving to CSV: {e}")
+        print(f"Subscribe DB Error: {e}")
+    finally:
+        db.close()
     return {"status": "success"}
 
 @app.post("/send-report")
 async def send_report(data: ReportRequest):
-    if data.session_id:
-        db = SessionLocal()
-        try:
-            stmt = update(GlobalLead).where(GlobalLead.session_id == data.session_id).values(owner_email=data.email)
+    email = (data.email or "").strip()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Valid email required")
+
+    db = SessionLocal()
+    try:
+        if data.session_id:
+            stmt = update(GlobalLead).where(GlobalLead.session_id == data.session_id).values(owner_email=email)
             db.execute(stmt)
-            db.commit()
-        except Exception as e:
-            print(f"DB Update Error: {e}")
-        finally:
-            db.close()
+        db.add(SiteEmail(email=email, source="report_unlock"))
+        db.commit()
+    except Exception as e:
+        print(f"Send-report DB Error: {e}")
+    finally:
+        db.close()
 
     try:
         # 1. Short attachment filename
