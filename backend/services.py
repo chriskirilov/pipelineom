@@ -55,16 +55,25 @@ def _header_match_count(line):
                 continue
             for v in variants:
                 v_flat = v.replace(" ", "").replace("_", "").replace("-", "")
-                if n == v or n_flat == v_flat or v in n or n in v:
+                if n == v or n_flat == v_flat:
+                    seen.add(canonical)
+                    break
+                if len(v) >= 4 and (v in n or n in v):
                     seen.add(canonical)
                     break
     return len(seen)
 
 
 def _build_column_rename(df_columns):
-    """Build rename dict: original column -> canonical. Each canonical used at most once."""
+    """Build rename dict: original column -> canonical. Each canonical used at most once.
+    
+    Uses a two-pass approach: exact matches first (high confidence), then substring
+    matches (lower confidence) — so a loose match can't steal a slot from an exact one.
+    """
     used = set()
     rename = {}
+
+    # Pass 1: exact matches only (case-insensitive, ignoring separators)
     for col in df_columns:
         raw = col.strip()
         n = raw.lower()
@@ -74,10 +83,29 @@ def _build_column_rename(df_columns):
                 continue
             for v in variants:
                 v_flat = v.replace(" ", "").replace("_", "").replace("-", "")
-                if n == v or n_flat == v_flat or v in n or n in v:
+                if n == v or n_flat == v_flat:
                     rename[col] = canonical
                     used.add(canonical)
                     break
+
+    # Pass 2: substring containment — only for still-unmapped columns & canonicals,
+    # and only when the variant is >= 4 chars (avoids "org" matching "organic_reach")
+    for col in df_columns:
+        if col in rename:
+            continue
+        raw = col.strip()
+        n = raw.lower()
+        for canonical, variants in _COLUMN_VARIANTS.items():
+            if canonical in used:
+                continue
+            for v in variants:
+                if len(v) < 4:
+                    continue
+                if v in n or n in v:
+                    rename[col] = canonical
+                    used.add(canonical)
+                    break
+
     return rename
 
 
@@ -89,7 +117,7 @@ def process_csv(file_contents):
         content_str = file_contents.decode('utf-8')
     except UnicodeDecodeError:
         content_str = file_contents.decode('latin-1')
-    content_str = content_str.strip()
+    content_str = content_str.lstrip("\ufeff").strip()
     if not content_str:
         raise ValueError("File has no content")
 
@@ -107,7 +135,10 @@ def process_csv(file_contents):
 
     # Map variant column names to canonical (each canonical used once)
     rename = _build_column_rename(df.columns)
+    print(f"[csv] original columns: {list(df.columns)}")
+    print(f"[csv] rename map: {rename}")
     df.rename(columns=rename, inplace=True)
+    print(f"[csv] mapped columns: {list(df.columns)}")
 
     # Fallback: Full Name / Name -> First Name + Last Name
     name_col = None
@@ -141,6 +172,8 @@ def process_csv(file_contents):
             df[col] = ""
 
     df = df.fillna("")
+    sample = df.head(2).to_dict('records')
+    print(f"[csv] final: {len(df)} rows, sample: {[{k: v for k, v in r.items() if v and k in _CANONICAL} for r in sample]}")
     return df
 
 
@@ -333,6 +366,13 @@ Return JSON:
             if data and isinstance(data, dict) and data.get("keywords"):
                 if not data.get("persona"):
                     data["persona"] = data.get("implicit_ask", idea)[:80]
+                # Coerce fields the frontend renders directly — model sometimes returns dicts
+                for str_field in ("rubric", "summary_analysis", "implicit_ask", "persona"):
+                    val = data.get(str_field)
+                    if isinstance(val, dict):
+                        data[str_field] = " | ".join(f"{k}: {v}" for k, v in val.items())
+                    elif val is not None and not isinstance(val, str):
+                        data[str_field] = str(val)
                 print(f"Strategy OK (attempt {attempt+1}): persona={data.get('persona')}, keywords={data.get('keywords')}")
                 return data
             else:

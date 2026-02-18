@@ -170,16 +170,25 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
         df = pd.concat(dfs, ignore_index=True)
         print(f"[analyze] raw rows: {len(df)}, columns: {list(df.columns)}")
         
-        # Deduplicate: only use URL if the column has real values (not all empty)
-        has_real_urls = 'URL' in df.columns and df['URL'].fillna("").astype(str).str.strip().ne("").any()
+        # Deduplicate — only on columns that have real data, never on empty values
+        df = df.fillna("")
+        url_col = df['URL'].astype(str).str.strip() if 'URL' in df.columns else pd.Series(dtype=str)
+        has_real_urls = url_col.ne("").any()
+
         if has_real_urls:
-            df = df.drop_duplicates(subset=['URL'], keep='first')
+            url_mask = url_col.ne("")
+            df_with_url = df[url_mask].drop_duplicates(subset=['URL'], keep='first')
+            df_without_url = df[~url_mask]
+            # For rows without URL, dedup on name+company if those have data
+            name_cols = [c for c in ['First Name', 'Last Name', 'Company'] if c in df_without_url.columns and df_without_url[c].astype(str).str.strip().ne("").any()]
+            if name_cols:
+                df_without_url = df_without_url.drop_duplicates(subset=name_cols, keep='first')
+            df = pd.concat([df_with_url, df_without_url], ignore_index=True)
         else:
-            dedup_cols = [c for c in ['First Name', 'Last Name', 'Company'] if c in df.columns]
+            dedup_cols = [c for c in ['First Name', 'Last Name', 'Company'] if c in df.columns and df[c].astype(str).str.strip().ne("").any()]
             if dedup_cols:
                 df = df.drop_duplicates(subset=dedup_cols, keep='first')
-        
-        df = df.fillna("") 
+
         print(f"[analyze] after dedup: {len(df)} rows")
 
         if df.empty:
@@ -278,17 +287,14 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
                     "symmetric_value": enrichment.get('symmetric_value', ''),
                 })
 
-        final_results = sorted(results, key=lambda x: x['score'], reverse=True)
-        meaningful = [r for r in final_results if r['score'] > 0]
-        top = meaningful[:20] if meaningful else final_results[:20]
-        print(f"[analyze] total scored: {len(results)}, meaningful (>0): {len(meaningful)}, returning: {len(top)}, top scores: {[r['score'] for r in top[:5]]}")
+        final_results = sorted(results, key=lambda x: x['score'], reverse=True)[:20]
+        meaningful_count = sum(1 for r in final_results if r['score'] > 0)
+        print(f"[analyze] total scored: {len(results)}, meaningful (>0): {meaningful_count}, returning: {len(final_results)}, top scores: {[r['score'] for r in final_results[:5]]}")
         
         return {
             "session_id": session_id,
             "strategy": strategy,
-            "data": top,
-            "total_scored": len(results),
-            "meaningful_count": len(meaningful),
+            "data": final_results,
         }
 
     except HTTPException:
