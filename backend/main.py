@@ -22,10 +22,12 @@ async def health_check():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000", 
-        "https://pipelineom.vercel.app", # The Vercel preview link
-        "https://pipelineom.com",        # Your final custom domain
-        "https://www.pipelineom.com"
+        "http://localhost:3000",
+        "https://pipelineom.vercel.app",
+        "https://pipelineom.com",
+        "https://www.pipelineom.com",
+        "https://pulse.pipelineom.com",
+        "https://www.pulse.pipelineom.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
