@@ -191,14 +191,28 @@ export default function Home() {
                 </div>
 
                 <div className="p-6">
-                  <p className="text-base text-stone-600 leading-relaxed mb-6">
-                    {strategy?.summary_analysis || strategy?.summary || "Analysis complete. Review the top candidates below."}
-                  </p>
+                  {/* AI Analysis Summary */}
+                  <div className="mb-6 space-y-3">
+                    {strategy?.persona && (
+                      <div className="inline-block px-3 py-1 bg-stone-100 text-stone-700 text-xs font-medium uppercase tracking-wider rounded-full">
+                        {strategy.persona}
+                      </div>
+                    )}
+                    <p className="text-base text-stone-600 leading-relaxed">
+                      {strategy?.summary_analysis || strategy?.implicit_ask || "Analysis complete. Review the top candidates below."}
+                    </p>
+                    {strategy?.rubric && (
+                      <details className="text-sm text-stone-500">
+                        <summary className="cursor-pointer hover:text-stone-700 font-medium">Scoring rubric</summary>
+                        <p className="mt-2 pl-3 border-l-2 border-stone-200 text-stone-500 leading-relaxed">{strategy.rubric}</p>
+                      </details>
+                    )}
+                  </div>
 
                   <div className="flex items-center gap-2 mb-4">
                     <div className={`w-2 h-2 rounded-full ${isUnlocked ? 'bg-stone-600' : 'bg-amber-500 animate-pulse'}`}></div>
                     <p className="text-sm font-medium text-stone-500 uppercase tracking-wide">
-                      {isUnlocked ? `Report: ${results.length} candidates` : "Preview (locked)"}
+                      {isUnlocked ? `Report: ${results.length} candidates` : `Preview — ${results.length} leads scored`}
                     </p>
                   </div>
 
@@ -225,7 +239,7 @@ export default function Home() {
                               style={{ width: `${Math.min(100, (r.score / 10) * 100)}%` }}
                             />
                           </div>
-                          <span className="font-serif text-stone-700 font-medium tabular-nums w-8">{r.score}</span>
+                          <span className="font-serif text-stone-700 font-medium tabular-nums w-8">{typeof r.score === 'number' ? r.score.toFixed(1) : r.score}</span>
                         </div>
                         <div className="col-span-3 pr-4">
                           <div className="font-medium text-stone-900 leading-tight mb-0.5">
@@ -254,7 +268,7 @@ export default function Home() {
                           <h4 className="font-serif text-xl font-medium text-stone-900 mb-2">Get full report</h4>
                           <p className="text-stone-500 mb-6 text-sm">
                             {results.length > 0
-                              ? <>We found <strong>{results.length}</strong> high-signal leads. Enter your email to receive the CSV and unlock the list below.</>
+                              ? <>We scored <strong>{results.length}</strong> leads for your goal. Enter your email to receive the CSV and unlock the full list.</>
                               : "Enter your email to receive the analysis summary and CSV export."}
                           </p>
                           <div className="space-y-3">

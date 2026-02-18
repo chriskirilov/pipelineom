@@ -249,16 +249,28 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
         
         # 5. Flatten and match results back to candidates
         results = []
-        row_idx = 0
         for batch_idx, batch_enrichments in enumerate(batch_results):
             batch = batches[batch_idx]
-            # Create a lookup by id
-            enrichment_map = {r.get("id", i+1): r for i, r in enumerate(batch_enrichments)}
+            enrichment_map = {}
+            for i, r in enumerate(batch_enrichments):
+                try:
+                    rid = int(r.get("id", i + 1))
+                except (ValueError, TypeError):
+                    rid = i + 1
+                enrichment_map[rid] = r
+
             for i, row in enumerate(batch):
-                enrichment = enrichment_map.get(i+1, {"score": 0, "reasoning": "", "symmetric_value": ""})
-                ai_score = enrichment.get('score', 0)
+                enrichment = enrichment_map.get(i + 1, None)
+                if enrichment is None and i < len(batch_enrichments):
+                    enrichment = batch_enrichments[i]
+                if enrichment is None:
+                    enrichment = {"score": 0, "reasoning": "", "symmetric_value": ""}
+                try:
+                    ai_score = float(enrichment.get("score", 0))
+                except (ValueError, TypeError):
+                    ai_score = 0.0
                 results.append({
-                    "name": f"{row.get('First Name', '')} {row.get('Last Name', '')}",
+                    "name": f"{row.get('First Name', '')} {row.get('Last Name', '')}".strip(),
                     "company": row.get('Company', ''),
                     "role": row.get('Position', ''),
                     "score": ai_score,
@@ -267,12 +279,16 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
                 })
 
         final_results = sorted(results, key=lambda x: x['score'], reverse=True)
-        print(f"[analyze] total scored: {len(results)}, returning top {min(20, len(final_results))}, top scores: {[r['score'] for r in final_results[:5]]}")
+        meaningful = [r for r in final_results if r['score'] > 0]
+        top = meaningful[:20] if meaningful else final_results[:20]
+        print(f"[analyze] total scored: {len(results)}, meaningful (>0): {len(meaningful)}, returning: {len(top)}, top scores: {[r['score'] for r in top[:5]]}")
         
         return {
             "session_id": session_id,
             "strategy": strategy,
-            "data": final_results[:20]
+            "data": top,
+            "total_scored": len(results),
+            "meaningful_count": len(meaningful),
         }
 
     except HTTPException:

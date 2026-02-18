@@ -242,21 +242,44 @@ def _smart_fallback(idea: str, row_count: int):
 
 def _extract_json(text: str):
     """Robustly extract JSON from model output, handling markdown fences and extra text."""
-    # Remove markdown fences
-    text = text.replace("```json", "").replace("```", "").strip()
-    # Try direct parse
+    text = re.sub(r"```(?:json)?", "", text).strip()
+    # Direct parse
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         pass
-    # Try to find JSON object or array in the text
-    for pattern in [r'\{[\s\S]*\}', r'\[[\s\S]*\]']:
-        match = re.search(pattern, text)
-        if match:
-            try:
-                return json.loads(match.group())
-            except json.JSONDecodeError:
+
+    # Bracket-matching: find the first [ or { and its balanced closing partner.
+    # This avoids the greedy-regex bug where stray brackets in prose break parsing.
+    for open_ch, close_ch in [("[", "]"), ("{", "}")]:
+        start = text.find(open_ch)
+        if start == -1:
+            continue
+        depth = 0
+        in_string = False
+        escape = False
+        for i in range(start, len(text)):
+            ch = text[i]
+            if escape:
+                escape = False
                 continue
+            if ch == "\\":
+                escape = True
+                continue
+            if ch == '"':
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == open_ch:
+                depth += 1
+            elif ch == close_ch:
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start : i + 1])
+                    except json.JSONDecodeError:
+                        break
     return None
 
 
@@ -308,7 +331,8 @@ Return JSON:
             raw = response.choices[0].message.content
             data = _extract_json(raw)
             if data and isinstance(data, dict) and data.get("keywords"):
-                data["persona"] = data.get("implicit_ask", idea)[:80]
+                if not data.get("persona"):
+                    data["persona"] = data.get("implicit_ask", idea)[:80]
                 print(f"Strategy OK (attempt {attempt+1}): persona={data.get('persona')}, keywords={data.get('keywords')}")
                 return data
             else:
@@ -430,7 +454,7 @@ Return ONLY the JSON array."""
             model=MODEL_ID,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=2000
+            max_tokens=4000
         )
         raw = response.choices[0].message.content
         parsed = _extract_json(raw)
@@ -447,10 +471,13 @@ Return ONLY the JSON array."""
         results = parsed if isinstance(parsed, list) else []
 
         for r in results:
-            r["score"] = float(r.get("score", 0))
+            try:
+                r["score"] = float(r.get("score", 0))
+            except (ValueError, TypeError):
+                r["score"] = 0.0
 
         scored = [r for r in results if r["score"] >= 6.0]
-        print(f"Batch: {len(rows)} leads → {len(scored)} scored 6+")
+        print(f"Batch: {len(rows)} leads → {len(results)} parsed, {len(scored)} scored 6+")
         return results
     except Exception as e:
         print(f"Batch analysis error: {e}")
