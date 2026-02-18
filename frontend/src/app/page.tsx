@@ -108,7 +108,7 @@ export default function Home() {
       {/* Navbar */}
       <nav className="fixed w-full z-50 top-0 border-b border-[#e7e5e4] bg-white/95 backdrop-blur-md">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <a href="https://pipelineom.com" className="flex items-center gap-2 no-underline text-stone-900 hover:opacity-80 transition-opacity">
             <Image
               src="/logo.png"
               alt="OM Logo"
@@ -116,8 +116,8 @@ export default function Home() {
               height={32}
               className="rounded-md"
             />
-            <span className="font-serif text-xl font-semibold tracking-tight text-stone-900">OM</span>
-          </div>
+            <span className="font-serif text-xl font-semibold tracking-tight">OM</span>
+          </a>
         </div>
       </nav>
 
