@@ -7,8 +7,8 @@ export const siteConfig = {
     subtitle: "Upload any CSV with leads (LinkedIn, CRM export, spreadsheet) — we surface the right people for your goal in under a minute.",
   },
 
-  // This allows you to point to localhost now, and your live URL later
+  // Set NEXT_PUBLIC_API_URL to http://127.0.0.1:8000 for local backend; omit for production (Railway)
   api: {
-    url: "https://pipelineom-production.up.railway.app"
+    url: process.env.NEXT_PUBLIC_API_URL || "https://pipelineom-production.up.railway.app"
   }
 }
