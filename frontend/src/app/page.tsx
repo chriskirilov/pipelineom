@@ -103,10 +103,10 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f5f4f0] text-stone-900 font-sans selection:bg-stone-200">
+    <main className="min-h-screen bg-white text-stone-900 font-sans selection:bg-stone-200">
       
-      {/* Navbar — matches homepage */}
-      <nav className="fixed w-full z-50 top-0 border-b border-[#e7e5e4] bg-[#f5f4f0]/90 backdrop-blur-md">
+      {/* Navbar */}
+      <nav className="fixed w-full z-50 top-0 border-b border-[#e7e5e4] bg-white/95 backdrop-blur-md">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Image
@@ -127,7 +127,7 @@ export default function Home() {
           {siteConfig.hero?.headline ?? "Your network has signal. You just can't see it yet."}
         </h1>
         <p className="text-lg text-stone-600 max-w-xl mx-auto leading-relaxed">
-          {siteConfig.hero?.subtitle ?? "Upload your LinkedIn Connections CSV — we surface the right people for your goal in under a minute."}
+          {siteConfig.hero?.subtitle ?? "Upload any CSV with leads (LinkedIn, CRM export, spreadsheet) — we surface the right people for your goal in under a minute."}
         </p>
       </section>
 
@@ -291,7 +291,7 @@ export default function Home() {
               <div className="space-y-3">
                 <label className="flex items-center gap-2 text-sm font-medium text-stone-500 uppercase tracking-wide">
                   <span className="flex items-center justify-center w-6 h-6 rounded-full bg-stone-300 text-stone-700 text-[10px] font-semibold">2</span>
-                  Data sources
+                  Upload leads CSV
                 </label>
                 <div className="relative group">
                   <input 
@@ -305,14 +305,14 @@ export default function Home() {
                     {files && files.length > 0 ? (
                       <div className="flex flex-col items-center">
                         <Layers className="w-10 h-10 text-stone-600 mb-2" />
-                        <p className="font-medium text-stone-900">{files.length} connection file{files.length !== 1 ? 's' : ''}</p>
-                        <p className="text-sm text-stone-500 mt-0.5">Ready to analyze</p>
+                        <p className="font-medium text-stone-900">{files.length} CSV file{files.length !== 1 ? 's' : ''}</p>
+                        <p className="text-sm text-stone-500 mt-0.5">Any CSV with leads — LinkedIn, CRM, spreadsheet. Ready to analyze.</p>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center text-stone-500 group-hover:text-stone-700 transition-colors">
                         <Upload className="w-10 h-10 mb-2" />
-                        <p className="font-medium">Upload LinkedIn Connections</p>
-                        <p className="text-sm mt-0.5">Drag & drop your .csv export here</p>
+                        <p className="font-medium">Upload any CSV with leads</p>
+                        <p className="text-sm mt-0.5">LinkedIn export, CRM list, or spreadsheet — drag & drop here</p>
                       </div>
                     )}
                   </div>
@@ -336,8 +336,8 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Footer — matches homepage */}
-      <footer className="border-t border-[#e7e5e4] bg-[#f5f4f0] py-8">
+      {/* Footer */}
+      <footer className="border-t border-[#e7e5e4] bg-white py-8">
         <div className="max-w-5xl mx-auto px-6 text-center text-sm text-stone-500">
           <p>PipelineOM — built for the autonomous enterprise</p>
         </div>

@@ -4,7 +4,7 @@ export const siteConfig = {
   
   hero: {
     headline: "Your network has signal. You just can't see it yet.",
-    subtitle: "Upload your LinkedIn Connections CSV — we surface the right people for your goal in under a minute.",
+    subtitle: "Upload any CSV with leads (LinkedIn, CRM export, spreadsheet) — we surface the right people for your goal in under a minute.",
   },
 
   // This allows you to point to localhost now, and your live URL later
