@@ -128,24 +128,34 @@ def process_csv(file_contents):
             header_idx = i
             break
 
-    # Auto-detect delimiter (comma, tab, semicolon, pipe, etc.)
-    sep = ","
-    try:
-        sample = "\n".join(lines[header_idx : header_idx + 5])
-        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
-        sep = dialect.delimiter
-    except csv.Error:
-        pass
-    print(f"[csv] detected delimiter: {repr(sep)}, header at line: {header_idx}")
+    # Try each delimiter; keep the one that gives the most recognized columns
+    best_df = None
+    best_sep = ","
+    best_rename = {}
 
-    df = pd.read_csv(io.StringIO(content_str), skiprows=header_idx, sep=sep)
-    if df.empty:
+    for try_sep in [",", "\t", ";", "|"]:
+        try:
+            trial = pd.read_csv(io.StringIO(content_str), skiprows=header_idx, sep=try_sep)
+            if trial.empty:
+                continue
+            trial.columns = [str(c).strip().strip('"').strip("'") for c in trial.columns]
+            trial_rename = _build_column_rename(trial.columns)
+            if len(trial_rename) > len(best_rename):
+                best_df = trial
+                best_sep = try_sep
+                best_rename = trial_rename
+            if len(trial_rename) >= 3:
+                break
+        except Exception:
+            continue
+
+    if best_df is None or best_df.empty:
         raise ValueError("CSV has no data rows")
-    df.columns = [str(c).strip() for c in df.columns]
 
-    # Map variant column names to canonical (each canonical used once)
-    rename = _build_column_rename(df.columns)
-    print(f"[csv] original columns: {list(df.columns)}")
+    df = best_df
+    rename = best_rename
+    print(f"[csv] delimiter: {repr(best_sep)}, header at line: {header_idx}")
+    print(f"[csv] original columns ({len(df.columns)}): {list(df.columns)}")
     print(f"[csv] rename map: {rename}")
     df.rename(columns=rename, inplace=True)
     print(f"[csv] mapped columns: {list(df.columns)}")
@@ -182,8 +192,13 @@ def process_csv(file_contents):
             df[col] = ""
 
     df = df.fillna("")
-    sample = df.head(2).to_dict('records')
-    print(f"[csv] final: {len(df)} rows, sample: {[{k: v for k, v in r.items() if v and k in _CANONICAL} for r in sample]}")
+    # Diagnostic: show actual data in key columns for first 2 rows
+    key_cols = ["First Name", "Last Name", "Company", "Position", "URL"]
+    for idx, row in df.head(2).iterrows():
+        sample = {c: str(row.get(c, ""))[:40] for c in key_cols if row.get(c, "")}
+        non_canonical = {str(c)[:25]: str(v)[:30] for c, v in row.items() if c not in _CANONICAL and str(v).strip()}
+        print(f"[csv] row {idx}: canonical={sample}, other={non_canonical}")
+    print(f"[csv] final: {len(df)} rows, {len(df.columns)} columns")
     return df
 
 

@@ -253,6 +253,16 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
         batch_size = 10
         batches = [candidate_rows[i:i+batch_size] for i in range(0, len(candidate_rows), batch_size)]
         
+        # Log what the first batch looks like so we can diagnose empty profiles
+        if batches:
+            sample_profiles = [_build_lead_profile(r) for r in batches[0][:3]]
+            print(f"[analyze] sample profiles (first 3): {sample_profiles}")
+            if all(not p for p in sample_profiles):
+                sample_keys = list(batches[0][0].index)[:15] if batches[0] else []
+                sample_vals = {str(k)[:25]: str(batches[0][0].get(k, ""))[:30] for k in sample_keys} if batches[0] else {}
+                print(f"[analyze] WARNING: all profiles empty! Row keys: {sample_keys}")
+                print(f"[analyze] WARNING: row values: {sample_vals}")
+
         batch_tasks = [analyze_leads_batch(batch, strategy, idea) for batch in batches]
         batch_results = await asyncio.gather(*batch_tasks)
         
