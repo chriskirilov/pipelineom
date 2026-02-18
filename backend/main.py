@@ -157,7 +157,10 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
             total_bytes += len(contents)
             if total_bytes > MAX_TOTAL_UPLOAD_MB * 1024 * 1024:
                 raise HTTPException(status_code=413, detail=f"Total upload exceeds {MAX_TOTAL_UPLOAD_MB}MB limit.")
-            dfs.append(process_csv(contents))
+            try:
+                dfs.append(process_csv(contents))
+            except Exception as csv_err:
+                raise HTTPException(status_code=400, detail=f"Could not parse CSV '{getattr(file, 'filename', 'file')}': {str(csv_err)}")
         
         if not dfs:
             raise HTTPException(status_code=400, detail="No files uploaded")
@@ -264,8 +267,10 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
             "data": final_results[:20]
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Analyze error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":

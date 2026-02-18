@@ -71,8 +71,13 @@ export default function Home() {
       setProgress(100);
       setTimeout(() => setStatus("done"), 500);
       
-    } catch (e) {
-      alert("Analysis failed. Ensure backend is running.");
+    } catch (e: unknown) {
+      const msg = axios.isAxiosError(e) && e.response?.data?.detail
+        ? (typeof e.response.data.detail === "string" ? e.response.data.detail : "Analysis failed.")
+        : axios.isAxiosError(e) && e.message
+          ? e.message
+          : "Analysis failed. Ensure backend is running and try again.";
+      alert(msg);
       setStatus("idle");
     }
   };

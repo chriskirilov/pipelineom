@@ -1,3 +1,4 @@
+import csv
 import json
 import os
 import re
@@ -15,31 +16,131 @@ client = AsyncOpenAI(
 MODEL_ID = "deepseek-ai/DeepSeek-V3-0324"
 
 
+# Canonical column names the rest of the pipeline expects
+_CANONICAL = ["First Name", "Last Name", "Company", "Position", "URL", "Email", "Industry", "Location", "Connected On"]
+
+# Variants per canonical (lowercase for case-insensitive match). Order: more specific first.
+_COLUMN_VARIANTS = {
+    "First Name": ["first name", "firstname", "first_name", "given name", "contact first name", "fname", "first"],
+    "Last Name": ["last name", "lastname", "last_name", "family name", "surname", "contact last name", "lname", "last"],
+    "Company": ["company", "company name", "companyname", "organization", "org", "account name", "accountname", "employer", "business", "account"],
+    "Position": ["position", "job title", "jobtitle", "title", "role", "job role", "job_position", "occupation"],
+    "URL": ["url", "linkedin url", "profile url", "website", "linkedin", "profile"],
+    "Email": ["email", "email address", "e-mail", "work email"],
+    "Industry": ["industry", "sector"],
+    "Location": ["location", "city", "region", "country"],
+    "Connected On": ["connected on", "connectedon", "date connected", "connection date"],
+}
+
+# Header row: must contain at least this many recognizable column names to be treated as header
+_HEADER_MIN_MATCHES = 2
+
+
+def _normalize_header_cell(cell):
+    return cell.strip().lower().replace(" ", "").replace("-", "").replace("_", "")
+
+
+def _header_match_count(line):
+    """Count how many cells in the line match our known column variants."""
+    try:
+        row = next(csv.reader(io.StringIO(line), skipinitialspace=True), [])
+    except Exception:
+        return 0
+    seen = set()
+    for cell in row:
+        n = cell.strip().lower()
+        n_flat = _normalize_header_cell(cell)
+        for canonical, variants in _COLUMN_VARIANTS.items():
+            if canonical in seen:
+                continue
+            for v in variants:
+                v_flat = v.replace(" ", "").replace("_", "").replace("-", "")
+                if n == v or n_flat == v_flat or v in n or n in v:
+                    seen.add(canonical)
+                    break
+    return len(seen)
+
+
+def _build_column_rename(df_columns):
+    """Build rename dict: original column -> canonical. Each canonical used at most once."""
+    used = set()
+    rename = {}
+    for col in df_columns:
+        raw = col.strip()
+        n = raw.lower()
+        n_flat = _normalize_header_cell(raw)
+        for canonical, variants in _COLUMN_VARIANTS.items():
+            if canonical in used:
+                continue
+            for v in variants:
+                v_flat = v.replace(" ", "").replace("_", "").replace("-", "")
+                if n == v or n_flat == v_flat or v in n or n in v:
+                    rename[col] = canonical
+                    used.add(canonical)
+                    break
+    return rename
+
+
 def process_csv(file_contents):
-    """Parses CSV bytes, automatically finding the header row."""
+    """Parse CSV with flexible header detection and column mapping for LinkedIn, Salesforce, HubSpot, Sheets."""
+    if not file_contents or len(file_contents) == 0:
+        raise ValueError("File is empty")
     try:
         content_str = file_contents.decode('utf-8')
     except UnicodeDecodeError:
         content_str = file_contents.decode('latin-1')
+    content_str = content_str.strip()
+    if not content_str:
+        raise ValueError("File has no content")
 
     lines = content_str.split('\n')
     header_idx = 0
-    for i, line in enumerate(lines[:20]):
-        if "First Name" in line and "Company" in line:
+    for i, line in enumerate(lines[:25]):
+        if _header_match_count(line) >= _HEADER_MIN_MATCHES:
             header_idx = i
             break
 
     df = pd.read_csv(io.StringIO(content_str), skiprows=header_idx)
-    
-    # Normalize headers to handle variations
-    mapping = {
-        'Job Title': 'Position',
-        'Company Name': 'Company',
-        'First Name': 'First Name',
-        'Last Name': 'Last Name'
-    }
-    df.rename(columns=mapping, inplace=True)
-    df.columns = [c.strip() for c in df.columns]
+    if df.empty:
+        raise ValueError("CSV has no data rows")
+    df.columns = [str(c).strip() for c in df.columns]
+
+    # Map variant column names to canonical (each canonical used once)
+    rename = _build_column_rename(df.columns)
+    df.rename(columns=rename, inplace=True)
+
+    # Fallback: Full Name / Name -> First Name + Last Name
+    name_col = None
+    want = {"full name", "name", "contact name", "fullname", "display name"}
+    for col in df.columns:
+        if str(col).strip().lower() in want:
+            name_col = col
+            break
+    if name_col is not None:
+        try:
+            need_first = "First Name" not in df.columns or df["First Name"].fillna("").astype(str).str.strip().eq("").all()
+            need_last = "Last Name" not in df.columns or df["Last Name"].fillna("").astype(str).str.strip().eq("").all()
+            if need_first or need_last:
+                parts = df[name_col].fillna("").astype(str).str.strip().str.split(n=1, expand=True)
+                if parts.shape[1] >= 1:
+                    if "First Name" not in df.columns:
+                        df["First Name"] = parts[0]
+                    elif need_first:
+                        df["First Name"] = parts[0]
+                if parts.shape[1] >= 2:
+                    if "Last Name" not in df.columns:
+                        df["Last Name"] = parts[1]
+                    elif need_last:
+                        df["Last Name"] = parts[1]
+        except Exception:
+            pass  # keep existing or empty columns
+
+    # Ensure canonical columns exist so downstream never KeyErrors
+    for col in _CANONICAL:
+        if col not in df.columns:
+            df[col] = ""
+
+    df = df.fillna("")
     return df
 
 
