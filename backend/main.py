@@ -168,14 +168,19 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
             raise HTTPException(status_code=400, detail="No files uploaded")
             
         df = pd.concat(dfs, ignore_index=True)
+        print(f"[analyze] raw rows: {len(df)}, columns: {list(df.columns)}")
         
-        # Deduplicate
-        if 'URL' in df.columns:
+        # Deduplicate: only use URL if the column has real values (not all empty)
+        has_real_urls = 'URL' in df.columns and df['URL'].fillna("").astype(str).str.strip().ne("").any()
+        if has_real_urls:
             df = df.drop_duplicates(subset=['URL'], keep='first')
         else:
-            df = df.drop_duplicates(subset=['First Name', 'Last Name', 'Company'], keep='first')
+            dedup_cols = [c for c in ['First Name', 'Last Name', 'Company'] if c in df.columns]
+            if dedup_cols:
+                df = df.drop_duplicates(subset=dedup_cols, keep='first')
         
         df = df.fillna("") 
+        print(f"[analyze] after dedup: {len(df)} rows")
 
         if df.empty:
             raise HTTPException(status_code=400, detail="Empty CSV")
@@ -232,6 +237,7 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
         
         # Take top 100 — if few have positive scores, still take 100 to give the AI enough to work with.
         candidates_df = df.sort_values(by='quick_score', ascending=False).head(100)
+        print(f"[analyze] candidates: {len(candidates_df)}, top quick_scores: {candidates_df['quick_score'].head(5).tolist()}")
         
         # 4. Batch Analysis — 10 batches of 10, all in parallel (~3-4s)
         candidate_rows = [row for _, row in candidates_df.iterrows()]
@@ -261,6 +267,7 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
                 })
 
         final_results = sorted(results, key=lambda x: x['score'], reverse=True)
+        print(f"[analyze] total scored: {len(results)}, returning top {min(20, len(final_results))}, top scores: {[r['score'] for r in final_results[:5]]}")
         
         return {
             "session_id": session_id,
