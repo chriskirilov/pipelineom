@@ -14,10 +14,10 @@ from sqlalchemy import update
 from services import process_csv, generate_strategy, analyze_leads_batch
 from database import SessionLocal, GlobalLead, SiteEmail
 
-app = FastAPI(title="PipelineOM API")
+app = FastAPI(title="OM API")
 @app.get("/")
 async def health_check():
-    return {"status": "online", "message": "PipelineOM API is awake and ready."}
+    return {"status": "online", "message": "OM API is awake and ready."}
 
 app.add_middleware(
     CORSMiddleware,
@@ -83,7 +83,7 @@ async def send_report(data: ReportRequest):
     try:
         # 1. Short attachment filename
         date_str = datetime.datetime.now().strftime("%Y%m%d")
-        filename = f"PipelineOM_Report_{date_str}.csv"
+        filename = f"OM_Report_{date_str}.csv"
 
         # 2. Generate CSV in Memory
         csv_buffer = StringIO()
@@ -104,9 +104,9 @@ async def send_report(data: ReportRequest):
         top_lead = data.leads[0]['name'] if data.leads else "high-value matches"
         
         params = {
-            "from": "PipelineOM <no-reply@leads.pipelineom.com>", 
+"from": "OM <no-reply@leads.pipelineom.com>",
             "to": [data.email],
-            "subject": "Your PipelineOM report",
+            "subject": "Your OM report",
             "html": f"""
                 <div style="font-family: sans-serif; max-width: 600px; color: #1e293b; line-height: 1.6;">
                     <h2 style="color: #4f46e5;">Your Network Analysis is Ready</h2>
@@ -128,7 +128,7 @@ async def send_report(data: ReportRequest):
                         The full detailed report is attached to this email. Good luck with your outreach!
                     </p>
                     <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">Powered by PipelineOM — Built for the Autonomous Enterprise</p>
+                    <p style="font-size: 11px; color: #94a3b8; text-align: center;">Powered by OM — Built for the Autonomous Enterprise</p>
                 </div>
             """,
             "attachments": [

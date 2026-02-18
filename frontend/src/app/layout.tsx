@@ -13,18 +13,18 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'PipelineOM | Cursor for GTM',
+  title: 'OM | Cursor for GTM',
   description: 'The AI-native workspace to build, test, and deploy go-to-market campaigns at the speed of thought.',
   openGraph: {
-    title: 'PipelineOM | Cursor for GTM',
+    title: 'OM | Cursor for GTM',
     description: 'Score your network and uncover high-value targets instantly with our AI routing engine.',
     url: 'https://pipelineom.com',
-    siteName: 'PipelineOM',
+    siteName: 'OM',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'PipelineOM | Cursor for GTM',
+    title: 'OM | Cursor for GTM',
     description: 'The AI-native workspace to build, test, and deploy go-to-market campaigns at the speed of thought.',
   }
 }

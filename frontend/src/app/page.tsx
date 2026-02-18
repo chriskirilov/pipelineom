@@ -111,12 +111,12 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Image
               src="/logo.png"
-              alt="PipelineOM Logo"
+              alt="OM Logo"
               width={32}
               height={32}
               className="rounded-md"
             />
-            <span className="font-serif text-xl font-semibold tracking-tight text-stone-900">PipelineOM</span>
+            <span className="font-serif text-xl font-semibold tracking-tight text-stone-900">OM</span>
           </div>
         </div>
       </nav>
@@ -339,7 +339,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-[#e7e5e4] bg-white py-8">
         <div className="max-w-5xl mx-auto px-6 text-center text-sm text-stone-500">
-          <p>PipelineOM — built for the autonomous enterprise</p>
+          <p>OM — built for the autonomous enterprise</p>
         </div>
       </footer>
     </main>

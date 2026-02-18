@@ -1,5 +1,5 @@
 export const siteConfig = {
-  name: "PipelineOM",
+  name: "OM",
   description: "Turn your LinkedIn network into revenue.",
   
   hero: {
