@@ -301,7 +301,7 @@ export default function Home() {
                   {/* Pulse bridge — on-ramp to design partner */}
                   <div className="mt-8 p-5 rounded-lg border border-[#e7e5e4] bg-[#fafaf9]">
                     <p className="text-sm text-stone-600 leading-relaxed">
-                      <span className="font-medium text-stone-700">This is one signal source.</span> Pulse connects your CRM, email, and calendar so you see who’s in motion — and when to reach out. <a href="#" className="text-stone-800 underline underline-offset-2 hover:no-underline">Join the design partner waitlist</a>.
+                      <span className="font-medium text-stone-700">This is one signal source.</span> Pulse connects your CRM, email, and calendar so you see who’s in motion — and when to reach out. <a href="https://pipelineom.com/#apply" className="text-stone-800 underline underline-offset-2 hover:no-underline">Join the design partner waitlist</a>.
                     </p>
                   </div>
                 </div>
