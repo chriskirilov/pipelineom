@@ -15,6 +15,13 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: 'OM | Cursor for GTM',
   description: 'The AI-native workspace to build, test, and deploy go-to-market campaigns at the speed of thought.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png', sizes: '32x32' },
+    ],
+    apple: '/icon.png',
+  },
   openGraph: {
     title: 'OM | Cursor for GTM',
     description: 'Score your network and uncover high-value targets instantly with our AI routing engine.',
