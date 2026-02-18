@@ -168,45 +168,26 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
             raise HTTPException(status_code=400, detail="No files uploaded")
             
         df = pd.concat(dfs, ignore_index=True)
-        print(f"[analyze] raw rows: {len(df)}, columns: {list(df.columns)}")
-        
-        # Deduplicate — only on columns that have real data, never on empty values
         df = df.fillna("")
-        url_col = df['URL'].astype(str).str.strip() if 'URL' in df.columns else pd.Series(dtype=str)
-        has_real_urls = url_col.ne("").any()
-
-        if has_real_urls:
-            url_mask = url_col.ne("")
-            df_with_url = df[url_mask].drop_duplicates(subset=['URL'], keep='first')
-            df_without_url = df[~url_mask]
-            # For rows without URL, dedup on name+company if those have data
-            name_cols = [c for c in ['First Name', 'Last Name', 'Company'] if c in df_without_url.columns and df_without_url[c].astype(str).str.strip().ne("").any()]
-            if name_cols:
-                df_without_url = df_without_url.drop_duplicates(subset=name_cols, keep='first')
-            df = pd.concat([df_with_url, df_without_url], ignore_index=True)
-        else:
-            dedup_cols = [c for c in ['First Name', 'Last Name', 'Company'] if c in df.columns and df[c].astype(str).str.strip().ne("").any()]
-            if dedup_cols:
-                df = df.drop_duplicates(subset=dedup_cols, keep='first')
-
-        print(f"[analyze] after dedup: {len(df)} rows")
+        print(f"[analyze] total rows: {len(df)}, columns: {list(df.columns)}")
 
         if df.empty:
             raise HTTPException(status_code=400, detail="Empty CSV")
 
-        # --- DB: Save all rows to GlobalLead ---
+        # --- DB: Save all rows ---
         session_id = str(uuid.uuid4())
         db = SessionLocal()
         try:
             records = []
             for _, row in df.iterrows():
+                p = _build_lead_profile(row)
                 records.append(GlobalLead(
                     session_id=session_id,
-                    first_name=str(row.get("First Name", "")),
-                    last_name=str(row.get("Last Name", "")),
+                    first_name=p.get("First Name", ""),
+                    last_name=p.get("Last Name", ""),
                     url=str(row.get("URL", "")),
-                    company=str(row.get("Company", "")),
-                    position=str(row.get("Position", "")),
+                    company=p.get("Company", ""),
+                    position=p.get("Position", ""),
                     connected_on=str(row.get("Connected On", "")),
                 ))
             db.add_all(records)
@@ -216,21 +197,21 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
         finally:
             db.close()
 
-        # 2. Get Dynamic Strategy from Architect
+        # 1. Strategy — AI generates keywords + rubric for the user's goal
         row_count = len(df)
         strategy = await generate_strategy(idea, row_count)
-        
+
         keywords = [k.lower() for k in strategy.get("keywords", []) if isinstance(k, str)]
         boost_words = [b.lower() for b in strategy.get("boost_words", []) if isinstance(b, str)]
         company_words = [c.lower() for c in strategy.get("company_words", []) if isinstance(c, str)]
         negative_words = [n.lower() for n in strategy.get("negative_words", ["intern", "student"]) if isinstance(n, str)]
         priority_signals = [s.lower() for s in strategy.get("priority_signals", []) if isinstance(s, str)]
-        
-        # 3. Fast Filter — score everyone, take top 100. This is just prioritization, NOT elimination.
-        # The AI batch scorer does the real filtering.
+
+        # 2. Keyword scan — score every row, take top 200 candidates
         def quick_score(row):
-            pos = str(row.get('Position', '')).lower()
-            comp = str(row.get('Company', '')).lower()
+            profile = _build_lead_profile(row)
+            pos = profile.get("Position", "").lower()
+            comp = profile.get("Company", "").lower()
             text = f"{pos} {comp}"
             score = 0
             score += sum(1 for w in keywords if w in text)
@@ -243,30 +224,22 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
             return score
 
         df['quick_score'] = df.apply(quick_score, axis=1)
-        
-        # Take top 100 — if few have positive scores, still take 100 to give the AI enough to work with.
-        candidates_df = df.sort_values(by='quick_score', ascending=False).head(100)
-        print(f"[analyze] candidates: {len(candidates_df)}, top quick_scores: {candidates_df['quick_score'].head(5).tolist()}")
-        
-        # 4. Batch Analysis — 10 batches of 10, all in parallel (~3-4s)
+        candidates_df = df.sort_values(by='quick_score', ascending=False).head(200)
+        print(f"[analyze] {len(df)} rows → top 200 candidates, top quick_scores: {candidates_df['quick_score'].head(5).tolist()}")
+
+        # 3. AI enrichment — batch-score all 200 in parallel
         candidate_rows = [row for _, row in candidates_df.iterrows()]
         batch_size = 10
         batches = [candidate_rows[i:i+batch_size] for i in range(0, len(candidate_rows), batch_size)]
-        
-        # Log what the first batch looks like so we can diagnose empty profiles
+
         if batches:
-            sample_profiles = [_build_lead_profile(r) for r in batches[0][:3]]
-            print(f"[analyze] sample profiles (first 3): {sample_profiles}")
-            if all(not p for p in sample_profiles):
-                sample_keys = list(batches[0][0].index)[:15] if batches[0] else []
-                sample_vals = {str(k)[:25]: str(batches[0][0].get(k, ""))[:30] for k in sample_keys} if batches[0] else {}
-                print(f"[analyze] WARNING: all profiles empty! Row keys: {sample_keys}")
-                print(f"[analyze] WARNING: row values: {sample_vals}")
+            sample = [_build_lead_profile(r) for r in batches[0][:3]]
+            print(f"[analyze] sample profiles: {sample}")
 
         batch_tasks = [analyze_leads_batch(batch, strategy, idea) for batch in batches]
         batch_results = await asyncio.gather(*batch_tasks)
-        
-        # 5. Flatten and match results back to candidates
+
+        # 4. Merge AI scores back to candidates → return top 25
         results = []
         for batch_idx, batch_enrichments in enumerate(batch_results):
             batch = batches[batch_idx]
@@ -298,14 +271,13 @@ async def analyze(idea: str = Form(...), files: List[UploadFile] = File(...)):
                     "symmetric_value": enrichment.get('symmetric_value', ''),
                 })
 
-        final_results = sorted(results, key=lambda x: x['score'], reverse=True)[:20]
-        meaningful_count = sum(1 for r in final_results if r['score'] > 0)
-        print(f"[analyze] total scored: {len(results)}, meaningful (>0): {meaningful_count}, returning: {len(final_results)}, top scores: {[r['score'] for r in final_results[:5]]}")
-        
+        final = sorted(results, key=lambda x: x['score'], reverse=True)[:25]
+        print(f"[analyze] scored {len(results)}, returning top {len(final)}, scores: {[r['score'] for r in final[:5]]}")
+
         return {
             "session_id": session_id,
             "strategy": strategy,
-            "data": final_results,
+            "data": final,
         }
 
     except HTTPException:
